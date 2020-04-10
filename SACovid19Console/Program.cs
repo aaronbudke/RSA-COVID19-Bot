@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Globalization;
+using System.Collections.Generic;
+using System.IO;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using unirest_net.http;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace SACovid19Console
 {
@@ -166,7 +169,7 @@ namespace SACovid19Console
             string lockdownHoursLeft = Convert.ToString(timeLeft.Hours);
             string lockdownMinutesLeft = Convert.ToString(timeLeft.Minutes);
             return  "*Lockdown:* On the 9th of April President Ramaphosa announced that the national lockdown would be extended by two weeks. "
-                    + "South African Lockdown will end on the 30th of April at 00:00. \n"
+                    + "South African Lockdown is scheduled to end on the 30th of April at 00:00. \n"
                               + "Time remaining: " + lockdownDaysLeft + " days, " + lockdownHoursLeft + " hours, "
                               + lockdownMinutesLeft + " minutes.";
         }
@@ -175,6 +178,15 @@ namespace SACovid19Console
         {
             return SAStats() + "\n\n" + WorldStats();
         }
+    }
+
+    class ChatInfo
+    {
+        //FIELDS
+        private long chatId;
+        
+        //PROPERTIES
+        public long ChatId { get; set; }        
     }
 
     class Program
@@ -218,6 +230,67 @@ namespace SACovid19Console
                               + " Instead I am here to help you during this period. To send my creator any bugs (problems), suggestions"
                               + " or feedback please email him with the subject \"COVID-19 Telegram Bot\" at: aaronbudkeprogrammer@gmail.com.";
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
+                }
+
+                else if (e.Message.Text == "/subscribe")
+                {
+                    ChatInfo currentChatInfo = new ChatInfo();
+                    currentChatInfo.ChatId = e.Message.Chat.Id;
+
+                    //Writes new ChatID to subscribedChatIds.txt
+                    using (StreamWriter subscribedChatIds = System.IO.File.AppendText("subscribedChatIds.txt"))
+                    {
+                        subscribedChatIds.WriteLine(currentChatInfo.ChatId.ToString());
+                        subscribedChatIds.Close();
+                    }
+
+                    replyText = "You have been subscribed to receive important push notifications from me regarding the COVID-19 pandemic in South Africa. To unsubscribe, please click /unsubscribe";
+                    TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
+                    TelegramBot.SendTextMessageAsync(chatId: 50757118, text: "A user has signed up for push notifications using /subscribe! Reference chat ID of new user: " + e.Message.Chat.Id);
+                }
+
+                else if (e.Message.Text == "/unsubscribe")
+                {
+                    ChatInfo currentChatInfo = new ChatInfo();
+                    currentChatInfo.ChatId = e.Message.Chat.Id;
+                    string filePath = "subscribedChatIds.txt";
+
+                    //Creates arr for new subscribedChatIds file.
+                    string unsubcribedChatId = currentChatInfo.ChatId.ToString();
+                    var oldFileArr = System.IO.File.ReadAllLines(filePath);
+                    string[] newFileArr = new string[oldFileArr.Length - 1];
+
+                    for (int x = 0, iterations = 0; x < oldFileArr.Length; x++)
+                    {
+                        if (oldFileArr[x] != unsubcribedChatId) { newFileArr[iterations] = oldFileArr[iterations]; iterations++; }
+                        else { continue; }
+                    }
+
+                    //Deletes old subscribedChatIds.txt and rewrites new file.
+                    System.IO.File.Delete(filePath);
+                    StreamWriter newFile = new StreamWriter("subscribedChatIds.txt");
+
+                    for (int x = 0; x < newFileArr.Length; x++)
+                    {
+                        newFile.WriteLine(newFileArr[x]);
+                    }
+                    newFile.Close();
+
+                    TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: "Succesfully unsubscribed from receiving important bot messages about the COVID-19 pandemic in South Africa.");
+                    TelegramBot.SendTextMessageAsync(chatId: 50757118, text: "A user has unsubscribed for push notifications using /unsubscribe. Reference chat ID of user: " + e.Message.Chat.Id);
+                }
+
+                else if (e.Message.Text.Contains("admin-send-push-notification-12345"))
+                {
+                    replyText = e.Message.Text.Remove(0, 34);
+
+                    //Sends push notification to each use that has subscribed to special push notifications.
+                    StreamReader readSubscribedChatIds = new StreamReader("subscribedChatIds.txt");
+                    while (!readSubscribedChatIds.EndOfStream)
+                    { 
+                        TelegramBot.SendTextMessageAsync(chatId: readSubscribedChatIds.ReadLine(), text: replyText, parseMode: ParseMode.Markdown);
+                    }
+                    readSubscribedChatIds.Close();
                 }
 
                 //Send all stats.
@@ -356,7 +429,7 @@ namespace SACovid19Console
                         || e.Message.Text.ToLower() == "hi!" || e.Message.Text.ToLower() == "hi "
                         || e.Message.Text == "/start")
                 {
-                    replyText = "Hi there! I am the unofficial RSA COVID-19 Telegram Bot! I am here to be your personal assistant to "
+                    replyText = "Hi! I am the unofficial RSA COVID-19 Telegram Bot! I am here to be your personal assistant to "
                               + "help you during the COVID-19 pandemic in South Africa. To begin, follow the steps below to send me your first command!\n\n"
                               + commandList;
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown);
