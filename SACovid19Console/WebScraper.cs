@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Net;
-using System.Globalization;
-using System.Text.RegularExpressions;
+﻿using System.Net;
 
 namespace SACovid19Console
 {
@@ -100,7 +95,7 @@ namespace SACovid19Console
                 if (presidencyString.ToLower().Contains("address"))
                 {
                     articleFound = true;
-                    articleClassIndex = presidencyString.ToLower().IndexOf("address") - 100;
+                    articleClassIndex = presidencyString.ToLower().IndexOf("address") - 350;
 
                     //Searches for a relevant article URL based off of the previosuly found index of our article.
                     int URLIndex = presidencyString.IndexOf("href=\"", articleClassIndex) + 6;
@@ -126,11 +121,11 @@ namespace SACovid19Console
                 
                 iterations++;
             }
-
-            return "*Manually Confirmed Date:* No manually confirmed date has been added yet." + "\n\n" + "*Automated Bot Search:*\n"
-                       + "This was the first press statement I could find about the President's next address:\n\n"
-                       + "*Title:* " + articleTitle + "\n" + "*Date published:* " + datePublished + "\n" + "*Short summary:* " + articleSynopsis
-                       + "..." + "\n\n" + articleURL;
+            
+            return "*Manually Confirmed Date:* No date has been added.\n\n"
+                         + "*Automated Bot Response:*\n" + "This was the first press statement I could find about the President's next address:\n\n"
+                         + "*Title:* " + articleTitle + "\n" + "*Date published:* " + datePublished + ".\n" + "*Short summary:* " + articleSynopsis
+                         + "..." + "\n\n" + articleURL; 
         }
     }
 }

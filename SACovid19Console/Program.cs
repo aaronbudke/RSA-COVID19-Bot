@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Globalization;
-using System.Collections.Generic;
-using System.IO;
+using System.Net;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using unirest_net.http;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
+using System.Linq;
 
 namespace SACovid19Console
 {
@@ -19,71 +18,63 @@ namespace SACovid19Console
                                                     //Number format to be used for unformated strings.
 
         //Methods
+        public static string[] statsArrIterator(string responseString)
+        {
+            int refIndex = responseString.LastIndexOf("2020,") + 5;
+            refIndex = responseString.IndexOf(',', refIndex) + 1;
+            int endRefIndex = responseString.IndexOf(',', refIndex);
+            int placeHolder = 0;
+            string[] totals = new string[11];
+            for (int i = 0; i < 11; i++)
+            {
+                placeHolder = Convert.ToInt32(responseString.Substring(refIndex, endRefIndex - refIndex));
+                totals[i] = placeHolder.ToString("n", statsFormat);
+                refIndex = responseString.IndexOf(',', endRefIndex) + 1;
+                endRefIndex = responseString.IndexOf(',', refIndex);
+            }
+            return totals;
+        }
+
         public static string SAStats()
         {
-            //Required variables:
-            string totalDeaths;
-            string totalCases;
             string totalRecovered;
             int totalActiveCasesInt;
             string totalActiveCasesString;
 
-            string responseString;
+            string totalsResponseString;
+
+            //Downloads string from of .csv data file and then places each total into a string array.
+            WebClient statsClient = new WebClient();
+            totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_confirmed.csv");
+            string[] totalCasesArr = statsArrIterator(totalsResponseString);
+
+            totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_deaths.csv");
+            string[] totalDeathsArr = statsArrIterator(totalsResponseString);
 
 
-        //Method makes API request call then uses string searching techniques to find relevant data for each category of stats.
-        HttpResponse<string> response = Unirest.get("https://covid-19-coronavirus-statistics.p.rapidapi.com/v1/stats?country=South+Africa")
-                                          .header("X-RapidAPI-Host", "covid-19-coronavirus-statistics.p.rapidapi.com")
-                                          .header("X-RapidAPI-Key", "38624df731msh2a7de3a003c0ea0p18bfa0jsn873ce6f24b0d")
-                                          .asJson<string>();
-            responseString = response.Body.ToString();
+            //Method makes API request call then uses string searching techniques to find relevant data for each category of stats.
+            HttpResponse<string> totalsResponse = Unirest.get("https://covid-19-coronavirus-statistics.p.rapidapi.com/v1/stats?country=South+Africa")
+                                              .header("X-RapidAPI-Host", "covid-19-coronavirus-statistics.p.rapidapi.com")
+                                              .header("X-RapidAPI-Key", "38624df731msh2a7de3a003c0ea0p18bfa0jsn873ce6f24b0d")
+                                              .asJson<string>();
+                totalsResponseString = totalsResponse.Body.ToString();
 
-            if (!responseString.Contains("Bad Gateway") && !responseString.Contains("Country not found"))
+            if (!totalsResponseString.Contains("Bad Gateway") && !totalsResponseString.Contains("Country not found"))
             {
-                JObject responseJObject = JObject.Parse(responseString);
-                int totalCasesInt = 0, totalDeathsInt = 0, totalRecoveredInt = 0;
+                JObject responseJObject = JObject.Parse(totalsResponseString);
+                int totalRecoveredInt = 0;
 
-                if (responseString.Contains("confirmed"))
-                {
-                    totalCases = (string)responseJObject["data"]["covid19Stats"][0]["confirmed"];
-                    totalCasesInt = Convert.ToInt32(totalCases);
-                    
-                    if (totalCasesInt > 0)
-                    {
-                        totalCases = totalCasesInt.ToString("n", statsFormat);
-                    }
-                    else
-                    {
-                        totalCases = "Could not fetch data.";
-                    }
-                }
-                else { totalCases = "Could not fetch data."; }
-
-                if (responseString.Contains("deaths"))
-                {
-                    totalDeaths = (string)responseJObject["data"]["covid19Stats"][0]["deaths"];
-                    totalDeathsInt = Convert.ToInt32(totalDeaths);
-
-                    if (totalDeathsInt > 0)
-                    {
-                        totalDeaths = totalDeathsInt.ToString("n", statsFormat);
-                    }
-                    else
-                    {
-                        totalDeaths = "Could not fetch data.";
-                    }
-                }
-                else { totalDeaths = "Could not fetch data."; }
-
-                if (responseString.Contains("recovered"))
+                if (totalsResponseString.Contains("recovered"))
                 {
                     totalRecovered = (string)responseJObject["data"]["covid19Stats"][0]["recovered"];
+                    int totalCasesHopkins = Convert.ToInt32((string)responseJObject["data"]["covid19Stats"][0]["confirmed"]);
+                    int totalDeathsHopkins = Convert.ToInt32((string)responseJObject["data"]["covid19Stats"][0]["deaths"]);
                     totalRecoveredInt = Convert.ToInt32(totalRecovered);
 
                     if (totalRecoveredInt > 0)
                     {
                         totalRecovered = totalRecoveredInt.ToString("n", statsFormat);
-                        totalActiveCasesInt = totalCasesInt - (totalDeathsInt + totalRecoveredInt);
+                        totalActiveCasesInt = totalCasesHopkins - (totalDeathsHopkins + totalRecoveredInt);
                         totalActiveCasesString = totalActiveCasesInt.ToString("n", statsFormat);
                     }
                     else
@@ -92,8 +83,8 @@ namespace SACovid19Console
                         totalActiveCasesString = "Could not fetch data.";
                     }
                 }
-                else 
-                { 
+                else
+                {
                     totalRecovered = "Could not fetch data.";
                     totalActiveCasesString = "Could not fetch data.";
                 }
@@ -101,14 +92,23 @@ namespace SACovid19Console
             }
             else
             {
-                totalCases = "Could not fetch data.";
-                totalDeaths = "Could not fetch data.";
                 totalRecovered = "Could not fetch data.";
                 totalActiveCasesString = "Could not fetch data";
             }
-            return  "*South African COVID-19 Stats:*\n" +
-                    "Total confirmed cases: " + totalCases + "\n" + "Total confirmed deaths: " + totalDeaths + "\n" +
-                    "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " +  totalActiveCasesString;
+
+                return "*South African COVID-19 Stats:*\n" +
+                        "Total confirmed cases: " + totalCasesArr[10] + "\n" + "Total confirmed deaths: " + totalDeathsArr[10] + "\n" +
+                        "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " + totalActiveCasesString + "\n\n"
+                                        + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2]
+                                        + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8]
+                                        + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3]
+                                        + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1]
+                                        + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0]
+                                        + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6]
+                                        + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7]
+                                        + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4]
+                                        + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5]
+                                        + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9];
         }
 
         public static string WorldStats()
@@ -129,28 +129,38 @@ namespace SACovid19Console
             responseString = worldResponse.Body.ToString();
             JObject responseJObject = JObject.Parse(responseString);
 
-            if(responseString.Contains("total_cases"))
-            {
-                totalCases = ((string)responseJObject["total_cases"]).Replace(",", " ");
-            }
-            else { totalCases = "Could not fetch data.";  }
-
-            if (responseString.Contains("total_deaths"))
-            {
-                totalDeaths = ((string)responseJObject["total_deaths"]).Replace(",", " ");
-            }
-            else { totalDeaths = "Could not fetch data.";  }
-
-            if (responseString.Contains("total_recovered"))
-            {
-                totalRecovered = ((string)responseJObject["total_recovered"]).Replace(",", " ");
-                activeCasesInt = Convert.ToInt32(totalCases.Replace(" ", "")) - (Convert.ToInt32(totalDeaths.Replace(" ", "")) + Convert.ToInt32(totalRecovered.Replace(" ", "")));
-                activeCasesString = activeCasesInt.ToString("n", statsFormat);
-            }
-            else 
+            if (responseString.Contains("total_cases"))
             { 
+                if (responseString.Contains("total_cases"))
+                {
+                    totalCases = ((string)responseJObject["total_cases"]).Replace(",", " ");
+                }
+                else { totalCases = "Could not fetch data."; }
+
+                if (responseString.Contains("total_deaths"))
+                {
+                    totalDeaths = ((string)responseJObject["total_deaths"]).Replace(",", " ");
+                }
+                else { totalDeaths = "Could not fetch data."; }
+
+                if (responseString.Contains("total_recovered"))
+                {
+                    totalRecovered = ((string)responseJObject["total_recovered"]).Replace(",", " ");
+                    activeCasesInt = Convert.ToInt32(totalCases.Replace(" ", "")) - (Convert.ToInt32(totalDeaths.Replace(" ", "")) + Convert.ToInt32(totalRecovered.Replace(" ", "")));
+                    activeCasesString = activeCasesInt.ToString("n", statsFormat);
+                }
+                else
+                {
+                    totalRecovered = "Could not fetch data.";
+                    activeCasesString = "Could not fetch data.";
+                }
+            }
+            else
+            {
+                totalCases = "Could not fetch data.";
+                totalDeaths = "Could not fetch data.";
                 totalRecovered = "Could not fetch data.";
-                activeCasesString = "Could not fetch data.";               
+                activeCasesString = "Could not fetch data.";
             }
 
             return "*Global COVID-19 Stats:*\n" + "Global confirmed cases: " + totalCases + "\n" + "Global confirmed deaths: " + totalDeaths + "\n" +
@@ -162,16 +172,24 @@ namespace SACovid19Console
             TimeZoneInfo timezoneSAST = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
             DateTime timeUCT = DateTime.UtcNow;
             DateTime timeSAST = TimeZoneInfo.ConvertTimeFromUtc(timeUCT, timezoneSAST);
-            DateTime lockdownFinishTime = new DateTime(2020, 4, 30, 0, 0, 0);
-
+            DateTime lockdownFinishTime = new DateTime(2020, 5, 1, 0, 0, 0);
+            DateTime lockdownStartTime = new DateTime(2020, 3, 27, 0, 0, 0);
+            
+            /*
             System.TimeSpan timeLeft = lockdownFinishTime.Subtract(timeSAST);
-            string lockdownDaysLeft = Convert.ToString(timeLeft.Days);
-            string lockdownHoursLeft = Convert.ToString(timeLeft.Hours);
-            string lockdownMinutesLeft = Convert.ToString(timeLeft.Minutes);
-            return  "*Lockdown:* On the 9th of April President Ramaphosa announced that the national lockdown would be extended by two weeks. "
-                    + "South African Lockdown is scheduled to end on the 30th of April at 00:00. \n"
-                              + "Time remaining: " + lockdownDaysLeft + " days, " + lockdownHoursLeft + " hours, "
-                              + lockdownMinutesLeft + " minutes.";
+            string daysLeft = Convert.ToString(timeLeft.Days);
+            string hoursLeft = Convert.ToString(timeLeft.Hours);
+            string minutesLeft = Convert.ToString(timeLeft.Minutes);
+            */
+
+            System.TimeSpan timePast = timeSAST.Subtract(lockdownStartTime);
+            string daysPast = Convert.ToString(timePast.Days);
+            string hoursPast = Convert.ToString(timePast.Hours);
+            string minutesPast = Convert.ToString(timePast.Hours);
+
+            return "*Lockdown:* " + "We are nationally in \"Level 4\" of Lockdown. It is unclear when the next national level change will occur. "
+                              + "For more information about the various lockdown levels vist: https://www.lockdownbozza.co.za/intro \n\n"
+                              + "Time passsed: " + daysPast + " days, " + hoursPast + " hours, " + minutesPast + " minutes.";
         }
 
         public static string AllStats()
@@ -201,16 +219,16 @@ namespace SACovid19Console
             string commandList = "Look at the list of commands below to have me send you the up-to-date relevant information you are looking for. " +
                                 "Simply click on the command or send the command to me exactly as in the list below (including the forward slash).\n" + "\n"
                                 + "*Commands:*" + "\n"
-                                + "/about - See what my creator's vision and purpose is for me as a bot.\n"
                                 + "/allstats - All available statistics.\n"
                                 + "/worldstats - Global COVID-19 stats.\n"
                                 + "/rsastats - All stats of COVID-19 in South Africa.\n"
                                 + "/news - Sends links to top articles from local news sites.\n"
-                                + "/president - (UPDATED) When the next President's address will be.\n"
+                                + "/president - When the next President's address will be.\n"
                                 + "/lockdown - Lockdown time remaining and extra info.\n"
-                                + "/explained - (NEW) Video and information explaining all things related to COVID-19 from trusted sources.\n"
+                                + "/explained - Video and information explaining all things related to COVID-19 from trusted sources.\n"
                                 + "/masks - Images and information explaining when and how to use a mask.\n"
                                 + "/hotline - Details of government COVID-19 hotline as well as government website information.\n"
+                                + "/about - See what my creator's vision and purpose is for me as a bot.\n"
                                 + "/bugs - Send bug reports (problems), suggestions or feedback.\n"
                                 + "/patchnotes - See latest fixes and updates to commands.\n"
                                 + "/credits - Information on who created me and resources used.\n"
@@ -232,21 +250,31 @@ namespace SACovid19Console
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
                 }
 
+                /*
                 else if (e.Message.Text == "/subscribe")
                 {
                     ChatInfo currentChatInfo = new ChatInfo();
                     currentChatInfo.ChatId = e.Message.Chat.Id;
 
-                    //Writes new ChatID to subscribedChatIds.txt
-                    using (StreamWriter subscribedChatIds = System.IO.File.AppendText("subscribedChatIds.txt"))
+                    if (System.IO.File.ReadAllText("subscribedChatIds.txt").Contains(currentChatInfo.ToString()))
                     {
-                        subscribedChatIds.WriteLine(currentChatInfo.ChatId.ToString());
-                        subscribedChatIds.Close();
+                        replyText = "You have already been subscribed to receive important messages from me. To unsubscribe, please click /unsubscribe";
+                        TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
                     }
 
-                    replyText = "You have been subscribed to receive important push notifications from me regarding the COVID-19 pandemic in South Africa. To unsubscribe, please click /unsubscribe";
-                    TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
-                    TelegramBot.SendTextMessageAsync(chatId: 50757118, text: "A user has signed up for push notifications using /subscribe! Reference chat ID of new user: " + e.Message.Chat.Id);
+                    else
+                    {
+                        //Writes new ChatID to subscribedChatIds.txt
+                        using (StreamWriter subscribedChatIds = System.IO.File.AppendText("subscribedChatIds.txt"))
+                        {
+                            subscribedChatIds.WriteLine(currentChatInfo.ChatId.ToString());
+                            subscribedChatIds.Close();
+                        }
+
+                        replyText = "You have been subscribed to receive important push notifications from me regarding the COVID-19 pandemic in South Africa. To unsubscribe, please click /unsubscribe";
+                        TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText);
+                        TelegramBot.SendTextMessageAsync(chatId: 50757118, text: "A user has signed up for push notifications using /subscribe! Reference chat ID of new user: " + e.Message.Chat.Id);
+                    }
                 }
 
                 else if (e.Message.Text == "/unsubscribe")
@@ -292,10 +320,12 @@ namespace SACovid19Console
                     }
                     readSubscribedChatIds.Close();
                 }
+                */
 
                 //Send all stats.
                 else if (e.Message.Text == "/allstats")
                 {
+                    TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     replyText = Stats.WorldStats() + "\n\n" + Stats.SAStats() + "\n\n" + Stats.SALockdownStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
                                                      "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
@@ -304,6 +334,7 @@ namespace SACovid19Console
                 //Send world COVID-19 stats.
                 else if (e.Message.Text == "/worldstats")
                 {
+                    TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     replyText = Stats.WorldStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
                                                      "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
@@ -312,7 +343,8 @@ namespace SACovid19Console
                 //Send South African COVID-19 stats.
                 else if (e.Message.Text == "/rsastats")
                 {
-                    replyText = Stats.SAStats();
+                    TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
+                    replyText = Stats.SAStats() + "\n\n" + Stats.SALockdownStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
                                                      "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
                 }
@@ -335,11 +367,11 @@ namespace SACovid19Console
                 //Send information on what COVID-19 is.
                 else if (e.Message.Text == "/explained")
                 {
-                    replyText = "*This highly informative video by renound and trusted source, Kurzgesagt, explains almost everything you might"
-                              + " want to know about COVID-19: *" + "https://www.youtube.com/watch?v=BtN-goy9VOY" + "\n\n"
-                              + " *World Health Organisation website dedicated to all things COVID-19: *\n"
+                    replyText = "This highly informative video by renound and trusted source, Kurzgesagt, explains almost everything you might"
+                              + " want to know about COVID-19: " + "https://www.youtube.com/watch?v=BtN-goy9VOY" + "\n\n"
+                              + "*World Health Organisation website dedicated to all things COVID-19: *\n"
                               + "https://www.who.int/emergencies/diseases/novel-coronavirus-2019 \n\n"
-                              + "* South African Government website dedicated to COVID-19:*\n"
+                              + "*South African Government website dedicated to COVID-19:*\n"
                               + "https://sacoronavirus.co.za/";
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown);
                 }
@@ -347,25 +379,15 @@ namespace SACovid19Console
                 //Send media group of images that explain when and how to use a mask.
                 else if (e.Message.Text == "/masks")
                 {
-                    TelegramBot.SendMediaGroupAsync(chatId: e.Message.Chat, inputMedia: new[] {
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-1.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-2.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-3.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-4.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-5.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-6.png"),
-                                                    new InputMediaPhoto("https://www.who.int/images/default-source/health-topics/coronavirus/masks/masks-7.png")});
-
-                    TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: "Images provided by _The World Health Organisation_ (WHO). Click button below for extra info.",
-                                                     replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
-                                                     "Extra information from WHO",
-                                                     "https://www.who.int/emergencies/diseases/novel-coronavirus-2019/advice-for-public/when-and-how-to-use-masks")),
-                                                     parseMode: ParseMode.Markdown);
+                    replyText = "The South African Government asks that all citizens wear masks when in public. For more information visit the Government press release by clicking the button below.";
+                    TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
+                                                     "See Government press release", "https://sacoronavirus.co.za/2020/04/21/use-of-cloth-face-masks-by-members-of-the-general-public-in-south-africa-during-the-covid-19-pandemic/")));
                 }
 
                 //Send webscraped information on when President's next address will be.
                 else if (e.Message.Text == "/president")
                 {
+                    TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     WebScraper currentWebScrape = new WebScraper();
                     replyText = currentWebScrape.PresidentWebScrape();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, disableWebPagePreview: false);
@@ -391,7 +413,10 @@ namespace SACovid19Console
                 //Send a list of patch notes.
                 else if (e.Message.Text == "/patchnotes")
                 {
-                    replyText = "*08/04:*\n" + "- Updated /president to search for official press releases from the presidency. "
+                    replyText = "*12/05:*\n" + "- Bot maintenance completed and moved bot communication to new server home.\n"
+                               + "- Switched to new data repo from Data Science for Social Impact research group at UP as old API has been retired.\n\n"
+                               + "*22/04:*\n" + "- Added breakdown of COVID-19 stats per province in /allstats and /rsastats.\n\n"
+                               + "*08/04:*\n" + "- Updated /president to search for official press releases from the presidency. "
                                + "Updated searching for relevant statements using better searching techniques.\n"
                                + "- Fixed /lockdown timer to display correct time remaining.\n\n"
                                + "*05/04:*\n" + "- Added /about command that gives more info about bot's purpose.\n"
@@ -411,9 +436,11 @@ namespace SACovid19Console
                 "aaronbudkeprogrammer@gmail.com." + "\n" + "\n"
                 + "Stats used by the bot are compiled by *Johns Hopkins University* which have been provided by the *COVID-19 Coronavirus Statistic API by Andrew Kish*"
                 + " and *Coronavirus Monitor by avalon*, both on RapidAPI.com. \n"
+                + "South African per province specific stats are compiled by *Data Science for Social Impact Research Group at University of Pretoria.*\n"
                 + "Profile art made by *FreePik* on FreePiks.com\n\n"
                 + "To gain access to COVID-19 Coronavirus Statistic API go to: https://rapidapi.com/KishCom/api/covid-19-coronavirus-statistics/endpoints \n"
                 + "To gain access to Coronavirus Monitor API go to: https://rapidapi.com/astsiatsko/api/coronavirus-monitor/endpoints \n"
+                + "To gain access to Data Science for Social Impact Research Group at University of Pretoria COVID-19 data: https://github.com/dsfsi/covid19za \n"
                 + "For more vectors like the profile art go to: https://www.freepik.com/free-photos-vectors/design";
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, disableWebPagePreview: true);
                 }
@@ -456,7 +483,6 @@ namespace SACovid19Console
 
         static void Main(string[] args)
         {
-            //TELEGRAM BOT
             TelegramBot.OnMessage += TelegramBot_OnMessage;
             TelegramBot.OnMessageEdited += TelegramBot_OnMessage;
 
