@@ -1,16 +1,31 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
+using System.Net.Http;
 
 namespace SACovid19Console
 {
     public class WebScraper
     {
-
         //Methods
         public static string News24Scrape()
         {
+            string template = "*News24 Top COVID-19 Article:*\n";
+
             //Uses string searching techniques to find top article info.
             WebClient newsClient = new WebClient();
-            string newsString = newsClient.DownloadString("https://www.news24.com/SouthAfrica/coronavirus");
+            string newsString = "";
+
+            try
+            {
+                newsString = newsClient.DownloadString("https://www.news24.com/SouthAfrica/coronavirus");
+            }
+            catch (System.Net.WebException e)
+            {
+                Console.WriteLine("Exception caught: {0}", e);
+                return template + "Could not get a response from News24.";
+            }
+
+            //If no exception is found code below runs:
             int topArticleClassIndex;
             topArticleClassIndex = newsString.IndexOf("<div class=\"main_story relative\"");
             int topArticleSearchIndex = newsString.IndexOf("href=", topArticleClassIndex) + 6;
@@ -20,14 +35,28 @@ namespace SACovid19Console
             int topTitleSearchIndex = newsString.IndexOf("topstory-", topArticleClassIndex) + 9;
             int topTitleSearchEndIndex = newsString.IndexOf("\"", topTitleSearchIndex);
             string topArticleTitle = "\"" + (newsString.Substring(topTitleSearchIndex, topTitleSearchEndIndex - topTitleSearchIndex)).TrimEnd() + "\"";
-            return "*News24 Top COVID-19 Article:*\n" + topArticleTitle + "\n" + topArticleURL;
+            return template + topArticleTitle + "\n" + topArticleURL;
         }
 
         public static string DailyMavScrape()
         {
+            string template = "*Daily Maverick Latest COVID-19 Article:*\n";
+
             //String searching techniques to find required info.
             WebClient dailyMavClient = new WebClient();
-            string newsString = dailyMavClient.DownloadString("https://www.dailymaverick.co.za/article_tag/covid-19/");
+            string newsString = "";
+
+            try
+            {
+                newsString = dailyMavClient.DownloadString("https://www.dailymaverick.co.za/article_tag/covid-19/");
+            }
+            catch (System.Net.WebException e)
+            {
+                Console.WriteLine("Exception caught: {0}", e);
+                return template + "Could not get a response from Daily Maverick.";
+            }
+
+            //If no exception is found code below runs:
             int latestArticleClassIndex;
             latestArticleClassIndex = newsString.IndexOf("media-item") + 10;
             int latestArticleSearchIndex = newsString.IndexOf("href=", latestArticleClassIndex) + 6;
@@ -38,14 +67,28 @@ namespace SACovid19Console
             int latestTitleSearchEndIndex = newsString.IndexOf("</h1>", latestTitleSearchIndex);
             string latestTitle = "\"" + (newsString.Substring(latestTitleSearchIndex, latestTitleSearchEndIndex - latestTitleSearchIndex)).TrimEnd() + "\"";
 
-            return "*Daily Maverick Latest COVID-19 Article:*\n" + latestTitle + "\n" + latestArticleURL;
+            return template + latestTitle + "\n" + latestArticleURL;
         }
 
         public static string TimesScrape()
         {
+            string template = "*TimesLIVE Top COVID-19 Article:*\n";
+
             //String searching techniques to find required info.
             WebClient timesClient = new WebClient();
-            string newsString = timesClient.DownloadString("https://www.timeslive.co.za/news/latest-covid-19-coronavirus-coverage/");
+            string newsString = "";
+
+            try
+            {
+                newsString = timesClient.DownloadString("https://www.timeslive.co.za/news/latest-covid-19-coronavirus-coverage/");
+            }
+            catch (System.Net.WebException e)
+            {
+                Console.WriteLine("Exception caught: {0}", e);
+                return template + "Could not get a response from TimesLIVE.";
+            }
+
+            //If no exception is found code below runs:
             int feauteredArticleClassIndex = newsString.IndexOf("article-list-item featured");
             int urlSearchIndex = newsString.IndexOf("href=", feauteredArticleClassIndex) + 6;
             int urlSearchEndIndex = newsString.IndexOf("/\"", urlSearchIndex);
@@ -54,14 +97,28 @@ namespace SACovid19Console
             int titleSearchIndex = newsString.IndexOf("title=", urlSearchEndIndex) + 7;
             int titleSearchEndIndex = newsString.IndexOf("\"", titleSearchIndex);
             string featuredArticleTitle = "\"" +  newsString.Substring(titleSearchIndex, titleSearchEndIndex - titleSearchIndex) + "\"";
-            return "*TimesLIVE Top COVID-19 Article:*\n" + featuredArticleTitle + "\n" + "https://www.timeslive.co.za" + featuredArticleURL;
+            return template + featuredArticleTitle + "\n" + "https://www.timeslive.co.za" + featuredArticleURL;
         }
 
         public static string CitizenScrape()
         {
+            string template = "*The Citizen Top COVID-19 Article:*\n";
+
             //String searching techniques to find relevant info.
             WebClient citizenClient = new WebClient();
-            string newsString = citizenClient.DownloadString("https://citizen.co.za/category/news/covid-19/");
+            string newsString = "";
+
+            try
+            {
+                newsString = citizenClient.DownloadString("https://citizen.co.za/category/news/covid-19/");
+            }
+            catch (System.Net.WebException e)
+            {
+                Console.WriteLine("Exception caught: {0}", e);
+                return template + "Could not get a response from The Citizen.";
+            }
+            
+            //If no exception is found code below runs:
             int topArticleClassIndex;
             topArticleClassIndex = newsString.IndexOf("covid-19-breaking-news-tagged") + 26;
             int topArticleSearchIndex = newsString.IndexOf("href=", topArticleClassIndex) + 6;
@@ -90,6 +147,8 @@ namespace SACovid19Console
 
         public string PresidentWebScrape()
         {
+            string template = "*Manually Confirmed Date:* No date has been added.\n\n"
+                         + "*Automated Bot Search:*\n" + "This was the first press statement I could find about the President's next address:\n\n";
             string articleURL = "";
             string articleTitle = "Could not find a recent press statement relating to the President's next address.";
             string articleSynopsis = "";
@@ -107,7 +166,16 @@ namespace SACovid19Console
                 if (iterations == 2) { break; }
 
                 WebClient presidencyClient = new WebClient();
-                presidencyString = presidencyClient.DownloadString(uRLToParse);
+
+                try
+                {
+                    presidencyString = presidencyClient.DownloadString(uRLToParse);
+                }
+                catch (System.Net.WebException e)
+                {
+                    Console.WriteLine("Exception caught: {0}", e);
+                    return template + "Could not get a response from The Presidency website.";
+                }
 
                 presidencyString = presidencyString.Substring(presidencyString.IndexOf("views-columns"));
 
@@ -141,10 +209,7 @@ namespace SACovid19Console
                 iterations++;
             }
 
-            return "*Manually Confirmed Date:* No date has been added.\n\n"
-                         + "*Automated Bot Search:*\n" + "This was the first press statement I could find about the President's next address:\n\n"
-                         + "*Title:* " + articleTitle + "\n" + "*Date published:* " + datePublished + ".\n" + "*Short summary:* " + articleSynopsis
-                         + "..." + "\n\n" + articleURL;
+            return template + "*Title:* " + articleTitle + "\n" + "*Date published:* " + datePublished + ".\n" + "*Short summary:* " + articleSynopsis + "..." + "\n\n" + articleURL;
         }
     }
 }

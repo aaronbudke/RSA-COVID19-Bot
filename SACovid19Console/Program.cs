@@ -2,13 +2,10 @@
 using System.Globalization;
 using System.Net;
 using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using unirest_net.http;
 using Newtonsoft.Json.Linq;
-using System.Linq;
-using System.Reflection;
 
 namespace SACovid19Console
 {
@@ -115,16 +112,16 @@ namespace SACovid19Console
                     "Total confirmed cases: " + totalCasesArr[10] + "\n" + "Total confirmed deaths: " + totalDeathsArr[10] + "\n" +
                     "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " + totalActiveCasesString + "\n" +
                     "Total tests performed: " + totalTestsArr[10] + "\n\n"
-                                + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2] + "\nTests performed: " + totalTestsArr[2] + "\nTests per 100K population: " + gpTestsPer100K
-                                + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8] + "\nTests performed: " + totalTestsArr[8] + "\nTests per 100K population: " + wcTestsPer100K
-                                + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3] + "\nTests performed: " + totalTestsArr[3] + "\nTests per 100K population: " + kznTestsPer100K
-                                + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1] + "\nTests performed: " + totalTestsArr[1] + "\nTests per 100K population: " + fsTestsPer100K
-                                + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0] + "\nTests performed: " + totalTestsArr[0] + "\nTests per 100K population: " + ecTestsPer100K
-                                + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6] + "\nTests performed: " + totalTestsArr[6] + "\nTests per 100K population: " + ncTestsPer100K
-                                + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7] + "\nTests performed: " + totalTestsArr[7] + "\nTests per 100K population: " + nwTestsPer100K
-                                + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4] + "\nTests performed: " + totalTestsArr[4] + "\nTests per 100K population: " + lpTestsPer100K
-                                + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5] + "\nTests performed: " + totalTestsArr[5] + "\nTests per 100K population: " + mpTestsPer100K
-                                + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9] + "\nTests performed: " + totalTestsArr[9];
+                        + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2] + "\nTests performed: " + totalTestsArr[2] + "\nTests per 100K population: " + gpTestsPer100K
+                        + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8] + "\nTests performed: " + totalTestsArr[8] + "\nTests per 100K population: " + wcTestsPer100K
+                        + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3] + "\nTests performed: " + totalTestsArr[3] + "\nTests per 100K population: " + kznTestsPer100K
+                        + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1] + "\nTests performed: " + totalTestsArr[1] + "\nTests per 100K population: " + fsTestsPer100K
+                        + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0] + "\nTests performed: " + totalTestsArr[0] + "\nTests per 100K population: " + ecTestsPer100K
+                        + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6] + "\nTests performed: " + totalTestsArr[6] + "\nTests per 100K population: " + ncTestsPer100K
+                        + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7] + "\nTests performed: " + totalTestsArr[7] + "\nTests per 100K population: " + nwTestsPer100K
+                        + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4] + "\nTests performed: " + totalTestsArr[4] + "\nTests per 100K population: " + lpTestsPer100K
+                        + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5] + "\nTests performed: " + totalTestsArr[5] + "\nTests per 100K population: " + mpTestsPer100K
+                        + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9] + "\nTests performed: " + totalTestsArr[9];
     }
 
         public static string WorldStats()
@@ -231,7 +228,7 @@ namespace SACovid19Console
         private static int requests = 1;
 
         private static void TelegramBot_OnMessage(object sender, Telegram.Bot.Args.MessageEventArgs e)
-        {
+        { 
             string replyText;
             string commandList = "Look at the list of commands below to have me send you the up-to-date relevant information you are looking for. " +
                                 "Simply click on the command or send the command to me exactly as in the list below (including the forward slash).\n" + "\n"
@@ -354,7 +351,7 @@ namespace SACovid19Console
                     TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     replyText = Stats.WorldStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
-                                                     "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
+                                                     "View extra stats and global map", "https://coronavirus.jhu.edu/map.html")));
                 }
 
                 //Send South African COVID-19 stats.
@@ -369,6 +366,7 @@ namespace SACovid19Console
                 //Send webscraped new news articles.
                 else if (e.Message.Text == "/news")
                 {
+                    TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     WebScraper currentWebScrape = new WebScraper();
                     replyText = currentWebScrape.AllNews();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, disableWebPagePreview: true);
@@ -430,7 +428,10 @@ namespace SACovid19Console
                 //Send a list of patch notes.
                 else if (e.Message.Text == "/patchnotes")
                 {
-                    replyText = "*12/05:*\n" + "- Bot maintenance completed and moved bot communication to new server home.\n"
+                    replyText = "*22/05:*\n" + "- Added testing totals for SA stats and tests per 100K population.\n"
+                               + "- Added TimesLIVE as additional news site in /news.\n"
+                               + "- Improved overall bot logic and responses for requesting information from websites that are often unstable.\n\n"
+                               + "*12/05:*\n" + "- Bot maintenance completed and moved bot communication to new server home.\n"
                                + "- Switched to new data repo from Data Science for Social Impact research group at UP as old API has been retired.\n\n"
                                + "*22/04:*\n" + "- Added breakdown of COVID-19 stats per province in /allstats and /rsastats.\n\n"
                                + "*08/04:*\n" + "- Updated /president to search for official press releases from the presidency. "
@@ -505,7 +506,7 @@ namespace SACovid19Console
 
             TelegramBot.StartReceiving();
             Console.ReadLine();
-            TelegramBot.StopReceiving();  
+            TelegramBot.StopReceiving();
         }
     }
 }
