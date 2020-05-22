@@ -4,7 +4,7 @@ namespace SACovid19Console
 {
     public class WebScraper
     {
-       
+
         //Methods
         public static string News24Scrape()
         {
@@ -20,7 +20,6 @@ namespace SACovid19Console
             int topTitleSearchIndex = newsString.IndexOf("topstory-", topArticleClassIndex) + 9;
             int topTitleSearchEndIndex = newsString.IndexOf("\"", topTitleSearchIndex);
             string topArticleTitle = "\"" + (newsString.Substring(topTitleSearchIndex, topTitleSearchEndIndex - topTitleSearchIndex)).TrimEnd() + "\"";
-            if (topArticleTitle.Contains("\\&#39;")) {  topArticleTitle = topArticleTitle.Replace("\\&#39;", "\'"); }
             return "*News24 Top COVID-19 Article:*\n" + topArticleTitle + "\n" + topArticleURL;
         }
 
@@ -35,11 +34,27 @@ namespace SACovid19Console
             int latestArticleSearchEndIndex = newsString.IndexOf("/\"", latestArticleSearchIndex);
             string latestArticleURL = newsString.Substring(latestArticleSearchIndex, latestArticleSearchEndIndex - latestArticleSearchIndex);
 
-            int latestTitleSearchIndex =  newsString.IndexOf("<h1>", latestArticleClassIndex) + 4;
+            int latestTitleSearchIndex = newsString.IndexOf("<h1>", latestArticleClassIndex) + 4;
             int latestTitleSearchEndIndex = newsString.IndexOf("</h1>", latestTitleSearchIndex);
             string latestTitle = "\"" + (newsString.Substring(latestTitleSearchIndex, latestTitleSearchEndIndex - latestTitleSearchIndex)).TrimEnd() + "\"";
 
             return "*Daily Maverick Latest COVID-19 Article:*\n" + latestTitle + "\n" + latestArticleURL;
+        }
+
+        public static string TimesScrape()
+        {
+            //String searching techniques to find required info.
+            WebClient timesClient = new WebClient();
+            string newsString = timesClient.DownloadString("https://www.timeslive.co.za/news/latest-covid-19-coronavirus-coverage/");
+            int feauteredArticleClassIndex = newsString.IndexOf("article-list-item featured");
+            int urlSearchIndex = newsString.IndexOf("href=", feauteredArticleClassIndex) + 6;
+            int urlSearchEndIndex = newsString.IndexOf("/\"", urlSearchIndex);
+            string featuredArticleURL = newsString.Substring(urlSearchIndex, urlSearchEndIndex - urlSearchIndex);
+
+            int titleSearchIndex = newsString.IndexOf("title=", urlSearchEndIndex) + 7;
+            int titleSearchEndIndex = newsString.IndexOf("\"", titleSearchIndex);
+            string featuredArticleTitle = "\"" +  newsString.Substring(titleSearchIndex, titleSearchEndIndex - titleSearchIndex) + "\"";
+            return "*TimesLIVE Top COVID-19 Article:*\n" + featuredArticleTitle + "\n" + "https://www.timeslive.co.za" + featuredArticleURL;
         }
 
         public static string CitizenScrape()
@@ -57,16 +72,20 @@ namespace SACovid19Console
             int topArticleTitleSearchEndIndex = newsString.IndexOf("\"", topArticleTitleSearchIndex);
             string topArticleTitle = "\"" + (newsString.Substring(topArticleTitleSearchIndex, topArticleTitleSearchEndIndex - topArticleTitleSearchIndex)).TrimEnd()
                 + "\"";
-            //Removes any unformatted commas and adds formatted commas:"
-            if (topArticleTitle.Contains("&#8217;")) { topArticleTitle = topArticleTitle.Replace("&#8217;", "\'"); }
 
             return "*The Citizen Top COVID-19 Article:*\n" + topArticleTitle + "\n" + citizenTopArticleURL;
         }
 
         public string AllNews()
         {
-            return News24Scrape() + "\n\n" + DailyMavScrape() + "\n\n" + CitizenScrape() + "\n\n"
+            string retString = News24Scrape() + "\n\n" + DailyMavScrape() + "\n\n" + TimesScrape() + "\n\n" + CitizenScrape() + "\n\n"
                    + "A check for latest top articles is made at each new /news request.";
+
+            //Removes unwanted special character codes with correct simple punctuation.
+            if (retString.Contains("&#8217;")) { retString = retString.Replace("&#8217;", "\'"); }
+            if (retString.Contains("\\&#39;")) { retString = retString.Replace("\\&#39;", "\'"); }
+
+            return retString;
         }
 
         public string PresidentWebScrape()
@@ -83,7 +102,7 @@ namespace SACovid19Console
 
             while (!articleFound)
             {
-                if(iterations == 0) { uRLToParse = "http://www.thepresidency.gov.za/press-statements/president-cyril-ramaphosa?page=0"; }
+                if (iterations == 0) { uRLToParse = "http://www.thepresidency.gov.za/press-statements/president-cyril-ramaphosa?page=0"; }
                 if (iterations == 1) { uRLToParse = "http://www.thepresidency.gov.za/press-statements/president-cyril-ramaphosa?page=1"; }
                 if (iterations == 2) { break; }
 
@@ -95,7 +114,7 @@ namespace SACovid19Console
                 if (presidencyString.ToLower().Contains("address"))
                 {
                     articleFound = true;
-                    articleClassIndex = presidencyString.ToLower().IndexOf("address") - 350;
+                    articleClassIndex = presidencyString.ToLower().IndexOf("address") - 250;
 
                     //Searches for a relevant article URL based off of the previosuly found index of our article.
                     int URLIndex = presidencyString.IndexOf("href=\"", articleClassIndex) + 6;
@@ -118,14 +137,14 @@ namespace SACovid19Console
                     int datePublishedEndIndex = presidencyString.IndexOf("<", datePublishedIndex);
                     datePublished = presidencyString.Substring(datePublishedIndex, datePublishedEndIndex - datePublishedIndex);
                 }
-                
+
                 iterations++;
             }
-            
+
             return "*Manually Confirmed Date:* No date has been added.\n\n"
-                         + "*Automated Bot Response:*\n" + "This was the first press statement I could find about the President's next address:\n\n"
+                         + "*Automated Bot Search:*\n" + "This was the first press statement I could find about the President's next address:\n\n"
                          + "*Title:* " + articleTitle + "\n" + "*Date published:* " + datePublished + ".\n" + "*Short summary:* " + articleSynopsis
-                         + "..." + "\n\n" + articleURL; 
+                         + "..." + "\n\n" + articleURL;
         }
     }
 }

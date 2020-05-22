@@ -8,6 +8,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using unirest_net.http;
 using Newtonsoft.Json.Linq;
 using System.Linq;
+using System.Reflection;
 
 namespace SACovid19Console
 {
@@ -43,13 +44,27 @@ namespace SACovid19Console
 
             string totalsResponseString;
 
-            //Downloads string from of .csv data file and then places each total into a string array.
+            //Downloads string from of .csv data file and then places each total into a string array to be used in return statement and calculations.
             WebClient statsClient = new WebClient();
             totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_confirmed.csv");
             string[] totalCasesArr = statsArrIterator(totalsResponseString);
 
             totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_deaths.csv");
             string[] totalDeathsArr = statsArrIterator(totalsResponseString);
+
+            totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_testing.csv");
+            string[] totalTestsArr = statsArrIterator(totalsResponseString);
+
+            //Calculations of how many tests have been performed per 100K population.
+            int ecTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[0], NumberStyles.AllowThousands) / 67.12276);
+            int fsTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[1], NumberStyles.AllowThousands) / 28.87465);
+            int gpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[2], NumberStyles.AllowThousands) / 151.76115);
+            int kznTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[3], NumberStyles.AllowThousands) / 112.89086);
+            int lpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[4], NumberStyles.AllowThousands) / 59.82584);
+            int mpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[5], NumberStyles.AllowThousands) / 45.92187);
+            int ncTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[6], NumberStyles.AllowThousands) / 12.63875);
+            int nwTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[7], NumberStyles.AllowThousands) / 40.2716);
+            int wcTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[8], NumberStyles.AllowThousands) / 68.44272);
 
 
             //Method makes API request call then uses string searching techniques to find relevant data for each category of stats.
@@ -96,20 +111,21 @@ namespace SACovid19Console
                 totalActiveCasesString = "Could not fetch data";
             }
 
-                return "*South African COVID-19 Stats:*\n" +
-                        "Total confirmed cases: " + totalCasesArr[10] + "\n" + "Total confirmed deaths: " + totalDeathsArr[10] + "\n" +
-                        "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " + totalActiveCasesString + "\n\n"
-                                        + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2]
-                                        + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8]
-                                        + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3]
-                                        + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1]
-                                        + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0]
-                                        + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6]
-                                        + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7]
-                                        + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4]
-                                        + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5]
-                                        + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9];
-        }
+            return "*South African COVID-19 Stats:*\n" +
+                    "Total confirmed cases: " + totalCasesArr[10] + "\n" + "Total confirmed deaths: " + totalDeathsArr[10] + "\n" +
+                    "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " + totalActiveCasesString + "\n" +
+                    "Total tests performed: " + totalTestsArr[10] + "\n\n"
+                                + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2] + "\nTests performed: " + totalTestsArr[2] + "\nTests per 100K population: " + gpTestsPer100K
+                                + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8] + "\nTests performed: " + totalTestsArr[8] + "\nTests per 100K population: " + wcTestsPer100K
+                                + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3] + "\nTests performed: " + totalTestsArr[3] + "\nTests per 100K population: " + kznTestsPer100K
+                                + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1] + "\nTests performed: " + totalTestsArr[1] + "\nTests per 100K population: " + fsTestsPer100K
+                                + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0] + "\nTests performed: " + totalTestsArr[0] + "\nTests per 100K population: " + ecTestsPer100K
+                                + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6] + "\nTests performed: " + totalTestsArr[6] + "\nTests per 100K population: " + ncTestsPer100K
+                                + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7] + "\nTests performed: " + totalTestsArr[7] + "\nTests per 100K population: " + nwTestsPer100K
+                                + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4] + "\nTests performed: " + totalTestsArr[4] + "\nTests per 100K population: " + lpTestsPer100K
+                                + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5] + "\nTests performed: " + totalTestsArr[5] + "\nTests per 100K population: " + mpTestsPer100K
+                                + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9] + "\nTests performed: " + totalTestsArr[9];
+    }
 
         public static string WorldStats()
         {
@@ -170,8 +186,8 @@ namespace SACovid19Console
         public static string SALockdownStats()
         {
             TimeZoneInfo timezoneSAST = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
-            DateTime timeUCT = DateTime.UtcNow;
-            DateTime timeSAST = TimeZoneInfo.ConvertTimeFromUtc(timeUCT, timezoneSAST);
+            //DateTime timeUCT = DateTime.UctNow;
+            DateTime timeSAST = DateTime.Now; //TimeZoneInfo.ConvertTimeFromUtc(timeUCT, timezoneSAST);
             DateTime lockdownFinishTime = new DateTime(2020, 5, 1, 0, 0, 0);
             DateTime lockdownStartTime = new DateTime(2020, 3, 27, 0, 0, 0);
             
@@ -185,10 +201,11 @@ namespace SACovid19Console
             System.TimeSpan timePast = timeSAST.Subtract(lockdownStartTime);
             string daysPast = Convert.ToString(timePast.Days);
             string hoursPast = Convert.ToString(timePast.Hours);
-            string minutesPast = Convert.ToString(timePast.Hours);
+            string minutesPast = Convert.ToString(timePast.Minutes);
 
-            return "*Lockdown:* " + "We are nationally in \"Level 4\" of Lockdown. It is unclear when the next national level change will occur. "
-                              + "For more information about the various lockdown levels vist: https://www.lockdownbozza.co.za/intro \n\n"
+            return "*Lockdown:* " + "We are nationally in \"Level 4\" of Lockdown. Lockdown levels will be handled per muncipality region in the future. It is expected that "
+                              + "most regions will be able to move to \"Level 3\" by the end of May except for those regions that still have high " 
+                              + "infection rates.\n" + "For more information about the various lockdown levels vist: https://www.lockdownbozza.co.za/intro \n\n"
                               + "Time passsed: " + daysPast + " days, " + hoursPast + " hours, " + minutesPast + " minutes.";
         }
 
@@ -328,7 +345,7 @@ namespace SACovid19Console
                     TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     replyText = Stats.WorldStats() + "\n\n" + Stats.SAStats() + "\n\n" + Stats.SALockdownStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
-                                                     "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
+                                                     "View detailed South African stats and map", "https://health.hydra.africa/")));
                 }
 
                 //Send world COVID-19 stats.
@@ -346,7 +363,7 @@ namespace SACovid19Console
                     TelegramBot.SendChatActionAsync(chatId: e.Message.Chat, chatAction: ChatAction.Typing);
                     replyText = Stats.SAStats() + "\n\n" + Stats.SALockdownStats();
                     TelegramBot.SendTextMessageAsync(chatId: e.Message.Chat, text: replyText, parseMode: ParseMode.Markdown, replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithUrl(
-                                                     "View extra stats and map", "https://coronavirus.jhu.edu/map.html")));
+                                                     "View detailed South African stats and map", "https://health.hydra.africa/")));
                 }
 
                 //Send webscraped new news articles.
