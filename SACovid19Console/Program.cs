@@ -304,7 +304,6 @@ namespace SACovid19Console
     {
         static void Main(string[] args)
         {
-            /*
             int x = 0;
             while(x < 2)
             {
@@ -355,8 +354,6 @@ namespace SACovid19Console
 
                 Thread.Sleep(600000);
             }
-            */
-            Console.WriteLine(Stats.SAStats());
         }
     }
 }
