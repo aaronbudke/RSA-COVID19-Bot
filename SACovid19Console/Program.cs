@@ -5,6 +5,8 @@ using unirest_net.http;
 using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Threading;
+using Azure.Storage.Blobs.Models;
+using System.Net.Http.Headers;
 
 namespace SACovid19Console
 {
@@ -15,21 +17,74 @@ namespace SACovid19Console
                                                     //Number format to be used for unformated strings.
 
         //Methods
-        public static string[] statsArrIterator(string responseString)
+        public static int[] statsArrIterator(string responseString, int day)
         {
-            int refIndex = responseString.LastIndexOf("2020,") + 5;
-            refIndex = responseString.IndexOf(',', refIndex) + 1;
-            int endRefIndex = responseString.IndexOf(',', refIndex);
-            int placeHolder = 0;
-            string[] totals = new string[11];
+            //int day represent how many days back the data must go. 0 = most recent, 1 = day before that etc.
+            string[] totalsPerDay = responseString.Split("2020,");
+            string totalsStr;
+
+            if (day == 0)
+            {
+                totalsStr = totalsPerDay[totalsPerDay.Length - 1];
+            }
+            else if (day == 1)
+            {
+                totalsStr = totalsPerDay[totalsPerDay.Length - 2];
+            }
+            else
+            {
+                totalsStr = totalsPerDay[totalsPerDay.Length - 1];
+            }
+
+            int placeHolder;
+            int refIndex = totalsStr.IndexOf(",") + 1;
+            int endRefIndex = totalsStr.IndexOf(',', refIndex);
+            int[] totalsArr = new int[11];
             for (int i = 0; i < 11; i++)
             {
-                placeHolder = Convert.ToInt32(responseString.Substring(refIndex, endRefIndex - refIndex));
-                totals[i] = placeHolder.ToString("n", statsFormat);
-                refIndex = responseString.IndexOf(',', endRefIndex) + 1;
-                endRefIndex = responseString.IndexOf(',', refIndex);
+                placeHolder = Convert.ToInt32(totalsStr.Substring(refIndex, endRefIndex - refIndex));
+                totalsArr[i] = placeHolder;
+                refIndex = totalsStr.IndexOf(',', endRefIndex) + 1;
+                endRefIndex = totalsStr.IndexOf(',', refIndex);
             }
-            return totals;
+            return totalsArr;
+        }
+
+        public static string[] StatsArrStrConvert(int[] totalsArr)
+        {
+            string[] returnStrArr = new string[11];
+            
+            for (int i = 0; i < 11; i++)
+            {
+                returnStrArr[i] = totalsArr[i].ToString("n", statsFormat);
+            }
+            return returnStrArr;
+        }
+
+        public static string[] SAStatsIncrease(int[] todayTotals, int[] yesterdayTotals)
+        {
+            string[] dailyIncrease = new string[11];
+            int placeHolderInt;
+            string placeHolderStr;
+            for (int i = 0; i < 11; i++)
+            {
+                placeHolderInt = todayTotals[i] - yesterdayTotals[i];
+                if (placeHolderInt > 0)
+                {
+                    placeHolderStr = placeHolderInt.ToString("n", statsFormat);
+                    dailyIncrease[i] = "(+" + placeHolderStr + ")";
+                }
+                else if (placeHolderInt < 0)
+                {
+                    placeHolderStr = placeHolderInt.ToString("n", statsFormat);
+                    dailyIncrease[i] = "(" + placeHolderStr + ")";
+                }
+                else
+                {
+                    dailyIncrease[i] = "";
+                }
+            }
+            return dailyIncrease;
         }
 
         public static string SAStats()
@@ -40,87 +95,112 @@ namespace SACovid19Console
 
             string totalsResponseString;
 
-            //Downloads string from .csv data file and then places each total into a string array to be used in return statement and calculations.
+            //Downloads string from .csv data file and then places each total into a int array to be used in return statement and calculations.
             WebClient statsClient = new WebClient();
             totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_confirmed.csv");
-            string[] totalCasesArr = statsArrIterator(totalsResponseString);
+            int[] casesTotalInt = statsArrIterator(totalsResponseString, 0);
+            int[] casesTotalYesterdayInt = statsArrIterator(totalsResponseString, 1);
+            string[] totalCasesIncrease = SAStatsIncrease(casesTotalInt, casesTotalYesterdayInt);
 
             totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_deaths.csv");
-            string[] totalDeathsArr = statsArrIterator(totalsResponseString);
+            int[] deathsTotalInt = statsArrIterator(totalsResponseString, 0);
+            int[] deathsTotalYesterdayInt = statsArrIterator(totalsResponseString, 1);
+            string[] totalDeathsIncrease = SAStatsIncrease(deathsTotalInt, deathsTotalYesterdayInt);
+
+            totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_recoveries.csv");
+            int[] recoveredTotalInt = statsArrIterator(totalsResponseString, 0);
+            int[] recoveredTotalYesterdayInt = statsArrIterator(totalsResponseString, 1);
+            string[] totalRecoveredIncrease = SAStatsIncrease(recoveredTotalInt, recoveredTotalYesterdayInt);
 
             totalsResponseString = statsClient.DownloadString("https://raw.githubusercontent.com/dsfsi/covid19za/master/data/covid19za_provincial_cumulative_timeline_testing.csv");
-            string[] totalTestsArr = statsArrIterator(totalsResponseString);
+            int[] totalTestsInt = statsArrIterator(totalsResponseString, 0);
 
             //Calculations of how many tests have been performed per 100K population.
-            int ecTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[0], NumberStyles.AllowThousands) / 67.12276);
-            int fsTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[1], NumberStyles.AllowThousands) / 28.87465);
-            int gpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[2], NumberStyles.AllowThousands) / 151.76115);
-            int kznTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[3], NumberStyles.AllowThousands) / 112.89086);
-            int lpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[4], NumberStyles.AllowThousands) / 59.82584);
-            int mpTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[5], NumberStyles.AllowThousands) / 45.92187);
-            int ncTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[6], NumberStyles.AllowThousands) / 12.63875);
-            int nwTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[7], NumberStyles.AllowThousands) / 40.2716);
-            int wcTestsPer100K = (int)Math.Round(Double.Parse(totalTestsArr[8], NumberStyles.AllowThousands) / 68.44272);
+            int ecTestsPer100K = (int)Math.Round(totalTestsInt[0] / 67.12276, 0);
+            int fsTestsPer100K = (int)Math.Round(totalTestsInt[1] / 28.87465, 0);
+            int gpTestsPer100K = (int)Math.Round(totalTestsInt[2] / 151.76115, 0);
+            int kznTestsPer100K = (int)Math.Round(totalTestsInt[3] / 112.89086, 0);
+            int lpTestsPer100K = (int)Math.Round(totalTestsInt[4] / 59.82584, 0);
+            int mpTestsPer100K = (int)Math.Round(totalTestsInt[5] / 45.92187, 0);
+            int ncTestsPer100K = (int)Math.Round(totalTestsInt[6] / 12.63875, 0);
+            int nwTestsPer100K = (int)Math.Round(totalTestsInt[7] / 40.2716, 0);
+            int wcTestsPer100K = (int)Math.Round(totalTestsInt[8] / 68.44272, 0);
 
-
-            //Method makes API request call then uses string searching techniques to find relevant data for each category of stats.
-            HttpResponse<string> totalsResponse = Unirest.get("https://covid-19-coronavirus-statistics.p.rapidapi.com/v1/stats?country=South+Africa")
-                                              .header("X-RapidAPI-Host", "covid-19-coronavirus-statistics.p.rapidapi.com")
-                                              .header("X-RapidAPI-Key", "38624df731msh2a7de3a003c0ea0p18bfa0jsn873ce6f24b0d")
-                                              .asJson<string>();
-                totalsResponseString = totalsResponse.Body.ToString();
-
-            if (!totalsResponseString.Contains("Bad Gateway") && !totalsResponseString.Contains("Country not found"))
+            //Calculations of active cases
+            int[] activeCasesArr = new int[11];
+            for(int i = 0; i < 11; i++)
             {
-                JObject responseJObject = JObject.Parse(totalsResponseString);
-                int totalRecoveredInt = 0;
+                int placeHolderInt;
+                activeCasesArr[i] = casesTotalInt[i] - deathsTotalInt[i] - recoveredTotalInt[i];
+            }
 
-                if (totalsResponseString.Contains("recovered"))
+            int[] activeCasesYesterdayArr = new int[11];
+            for (int i = 0; i < 11; i++)
+            {
+                int placeHolderInt;
+                activeCasesYesterdayArr[i] = casesTotalYesterdayInt[i] - deathsTotalYesterdayInt[i] - recoveredTotalYesterdayInt[i];
+            }
+
+            //Calculation of increase in active cases
+            string[] activeCasesIncreaseArr = new string[11];
+            for (int i = 0; i < 11; i++)
+            {
+                int placeHolderInt;
+                placeHolderInt = activeCasesArr[i] - activeCasesYesterdayArr[i];
+                if (placeHolderInt > 0)
                 {
-                    totalRecovered = (string)responseJObject["data"]["covid19Stats"][0]["recovered"];
-                    int totalCasesHopkins = Convert.ToInt32((string)responseJObject["data"]["covid19Stats"][0]["confirmed"]);
-                    int totalDeathsHopkins = Convert.ToInt32((string)responseJObject["data"]["covid19Stats"][0]["deaths"]);
-                    totalRecoveredInt = Convert.ToInt32(totalRecovered);
-
-                    if (totalRecoveredInt > 0)
-                    {
-                        totalRecovered = totalRecoveredInt.ToString("n", statsFormat);
-                        totalActiveCasesInt = totalCasesHopkins - (totalDeathsHopkins + totalRecoveredInt);
-                        totalActiveCasesString = totalActiveCasesInt.ToString("n", statsFormat);
-                    }
-                    else
-                    {
-                        totalRecovered = "Could not fetch data.";
-                        totalActiveCasesString = "Could not fetch data.";
-                    }
+                    activeCasesIncreaseArr[i] = "(+" +  placeHolderInt.ToString("n", statsFormat) + ")";
+                }
+                else if (placeHolderInt < 0)
+                {
+                    activeCasesIncreaseArr[i] = "(" + placeHolderInt.ToString("n", statsFormat) + ")";
                 }
                 else
                 {
-                    totalRecovered = "Could not fetch data.";
-                    totalActiveCasesString = "Could not fetch data.";
+                    activeCasesIncreaseArr[i] = "";
                 }
+            }
 
-            }
-            else
-            {
-                totalRecovered = "Could not fetch data.";
-                totalActiveCasesString = "Could not fetch data";
-            }
+            //Converts int[] arrays to string arrays with correct stats format to be printed.
+            string[] casesTotalStr = StatsArrStrConvert(casesTotalInt);
+            string[] deathsTotalStr = StatsArrStrConvert(deathsTotalInt);
+            string[] recoveredTotalStr = StatsArrStrConvert(recoveredTotalInt);
+            string[] testsTotalStr = StatsArrStrConvert(totalTestsInt);
 
             return "*South African COVID-19 Stats:*\n" +
-                    "Total confirmed cases: " + totalCasesArr[10] + "\n" + "Total confirmed deaths: " + totalDeathsArr[10] + "\n" +
-                    "Total confirmed recovered: " + totalRecovered + "\n" + "Total active cases: " + totalActiveCasesString + "\n" +
-                    "Total tests performed: " + totalTestsArr[10] + "\n\n"
-                        + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + totalCasesArr[2] + "\nDeaths: " + totalDeathsArr[2] + "\nTests performed: " + totalTestsArr[2] + "\nTests per 100K population: " + gpTestsPer100K
-                        + "\n\nWestern Cape:\n" + "Cases: " + totalCasesArr[8] + "\nDeaths: " + totalDeathsArr[8] + "\nTests performed: " + totalTestsArr[8] + "\nTests per 100K population: " + wcTestsPer100K
-                        + "\n\nKwaZulu-Natal:\n" + "Cases: " + totalCasesArr[3] + "\nDeaths: " + totalDeathsArr[3] + "\nTests performed: " + totalTestsArr[3] + "\nTests per 100K population: " + kznTestsPer100K
-                        + "\n\nFree State:\n" + "Cases: " + totalCasesArr[1] + "\nDeaths: " + totalDeathsArr[1] + "\nTests performed: " + totalTestsArr[1] + "\nTests per 100K population: " + fsTestsPer100K
-                        + "\n\nEastern Cape:\n" + "Cases: " + totalCasesArr[0] + "\nDeaths: " + totalDeathsArr[0] + "\nTests performed: " + totalTestsArr[0] + "\nTests per 100K population: " + ecTestsPer100K
-                        + "\n\nNorthern Cape:\n" + "Cases: " + totalCasesArr[6] + "\nDeaths: " + totalDeathsArr[6] + "\nTests performed: " + totalTestsArr[6] + "\nTests per 100K population: " + ncTestsPer100K
-                        + "\n\nNorth West:\n" + "Cases: " + totalCasesArr[7] + "\nDeaths: " + totalDeathsArr[7] + "\nTests performed: " + totalTestsArr[7] + "\nTests per 100K population: " + nwTestsPer100K
-                        + "\n\nLimpopo:\n" + "Cases: " + totalCasesArr[4] + "\nDeaths: " + totalDeathsArr[4] + "\nTests performed: " + totalTestsArr[4] + "\nTests per 100K population: " + lpTestsPer100K
-                        + "\n\nMpumulanga:\n" + "Cases: " + totalCasesArr[5] + "\nDeaths: " + totalDeathsArr[5] + "\nTests performed: " + totalTestsArr[5] + "\nTests per 100K population: " + mpTestsPer100K
-                        + "\n\nUnknown:\n" + "Cases: " + totalCasesArr[9] + "\nDeaths: " + totalDeathsArr[9] + "\nTests performed: " + totalTestsArr[9];
+                    "Total confirmed cases: " + casesTotalStr[10] + totalCasesIncrease[10] + "\n" +
+                    "Total confirmed deaths: " + deathsTotalStr[10] + totalDeathsIncrease[10] + "\n" +
+                    "Total confirmed recovered: " + recoveredTotalStr[10] + totalRecoveredIncrease[10] + "\n" + "Total active cases: " + activeCasesArr[10] + activeCasesIncreaseArr[10] +  "\n" +
+                    "Total tests performed: " + testsTotalStr[10] + "\n\n"
+                        + "*Stats Per Province:*\n" + "Gauteng:\n" + "Cases: " + casesTotalStr[2] + totalCasesIncrease[2] + "\nDeaths: " + deathsTotalStr[2] + totalDeathsIncrease[2] + "\nRecovered: " + recoveredTotalStr[2] + totalRecoveredIncrease[2] 
+                        + "\nActive Cases: " + activeCasesArr[2] + activeCasesIncreaseArr[2] + "\nTests performed: " + testsTotalStr[2] + "\nTests per 100K population: " + gpTestsPer100K
+                        
+                        + "\n\nWestern Cape:\n" + "Cases: " + casesTotalStr[8] + totalCasesIncrease[8] + "\nDeaths: " + deathsTotalStr[8] + totalDeathsIncrease[8] + "\nRecovered: " + recoveredTotalStr[8] + totalRecoveredIncrease[8]
+                        + "\nActive Cases: " + activeCasesArr[8] + activeCasesIncreaseArr[8] + "\nTests performed: " + testsTotalStr[8] + "\nTests per 100K population: " + wcTestsPer100K
+                        
+                        + "\n\nKwaZulu-Natal:\n" + "Cases: " + casesTotalStr[3] + totalCasesIncrease[3] + "\nDeaths: " + deathsTotalStr[3] + totalDeathsIncrease[3] + "\nRecovered: " + recoveredTotalStr[3] + totalRecoveredIncrease[3]
+                        + "\nActive Cases: " + activeCasesArr[3] + activeCasesIncreaseArr[3] + "\nTests performed: " + testsTotalStr[3] + "\nTests per 100K population: " + kznTestsPer100K
+                        
+                        + "\n\nFree State:\n" + "Cases: " + casesTotalStr[1] + totalCasesIncrease[1] + "\nDeaths: " + deathsTotalStr[1] + totalDeathsIncrease[1] + "\nRecovered: " + recoveredTotalStr[1] + totalRecoveredIncrease[1]
+                        + "\nActive Cases: " + activeCasesArr[1] + activeCasesIncreaseArr[1] + "\nTests performed: " + testsTotalStr[1] + "\nTests per 100K population: " + fsTestsPer100K
+                        
+                        + "\n\nEastern Cape:\n" + "Cases: " + casesTotalStr[0] + totalCasesIncrease[0] + "\nDeaths: " + deathsTotalStr[0] + totalDeathsIncrease[0] + "\nRecovered: " + recoveredTotalStr[0] + totalRecoveredIncrease[0]
+                        + "\nActive Cases: " + activeCasesArr[0] + activeCasesIncreaseArr[0] + "\nTests performed: " + testsTotalStr[0] + "\nTests per 100K population: " + ecTestsPer100K
+                        
+                        + "\n\nNorthern Cape:\n" + "Cases: " + casesTotalStr[6] + totalCasesIncrease[6] + "\nDeaths: " + deathsTotalStr[6] + totalDeathsIncrease[6] + "\nRecovered: " + recoveredTotalStr[6] + totalRecoveredIncrease[6]
+                        + "\nActive Cases: " + activeCasesArr[6] + activeCasesIncreaseArr[6] + "\nTests performed: " + testsTotalStr[6] + "\nTests per 100K population: " + ncTestsPer100K
+                        
+                        + "\n\nNorth West:\n" + "Cases: " + casesTotalStr[7] + totalCasesIncrease[7] + "\nDeaths: " + deathsTotalStr[7] + totalDeathsIncrease[7] + "\nRecovered: " + recoveredTotalStr[7] + totalRecoveredIncrease[7]
+                        + "\nActive Cases: " + activeCasesArr[7] + activeCasesIncreaseArr[7] + "\nTests performed: " + testsTotalStr[7] + "\nTests per 100K population: " + nwTestsPer100K
+
+                        + "\n\nLimpopo:\n" + "Cases: " + casesTotalStr[4] + totalCasesIncrease[4] + "\nDeaths: " + deathsTotalStr[4] + totalDeathsIncrease[4] + "\nRecovered: " + recoveredTotalStr[4] + totalRecoveredIncrease[4]
+                        + "\nActive Cases: " + activeCasesArr[4] + activeCasesIncreaseArr[4] + "\nTests performed: " + testsTotalStr[4] + "\nTests per 100K population: " + lpTestsPer100K
+
+                        + "\n\nMpumulanga:\n" + "Cases: " + casesTotalStr[5] + totalCasesIncrease[5] + "\nDeaths: " + deathsTotalStr[5] + totalDeathsIncrease[5] + "\nRecovered: " + recoveredTotalStr[5] + totalRecoveredIncrease[5]
+                        + "\nActive Cases: " + activeCasesArr[5] + activeCasesIncreaseArr[5] + "\nTests performed: " + testsTotalStr[5] + "\nTests per 100K population: " + mpTestsPer100K
+
+                        + "\n\nUnknown:\n" + "Cases: " + casesTotalStr[9] + totalCasesIncrease[9] + "\nDeaths: " + deathsTotalStr[9] + totalDeathsIncrease[9] + "\nRecovered: " + recoveredTotalStr[9] + totalRecoveredIncrease[9]
+                        + "\nActive Cases: " + activeCasesArr[9] + activeCasesIncreaseArr[9] + "\nTests performed: " + testsTotalStr[9];
     }
 
         public static string WorldStats()
@@ -224,6 +304,7 @@ namespace SACovid19Console
     {
         static void Main(string[] args)
         {
+            /*
             int x = 0;
             while(x < 2)
             {
@@ -272,8 +353,10 @@ namespace SACovid19Console
                     presidentCache.Close();
                 }
 
-                Thread.Sleep(60000);
+                Thread.Sleep(600000);
             }
+            */
+            Console.WriteLine(Stats.SAStats());
         }
     }
 }
